@@ -12,8 +12,11 @@ def decode_text(s: Union[bytes, str]) -> str:
     """
     if isinstance(s, bytes) and s.startswith(b"\xfe\xff"):
         return str(s[2:], "utf-16be", "ignore")
-    ords = (ord(c) if isinstance(c, str) else c for c in s)
-    return "".join(PDFDocEncoding[o] for o in ords)
+    try:
+        ords = (ord(c) if isinstance(c, str) else c for c in s)
+        return "".join(PDFDocEncoding[o] for o in ords)
+    except IndexError:
+        return str(s)
 
 
 def resolve_and_decode(obj: Any) -> Any:

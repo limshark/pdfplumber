@@ -27,7 +27,10 @@ class Test(unittest.TestCase):
         last_line_without_drop = table_without_drop_duplicates[1][1].split("\n")[-1]
         last_line_with_drop = table_with_drop_duplicates[1][1].split("\n")[-1]
 
-        assert last_line_without_drop == "微微软软 培培训训课课程程：： 名名模模意意义义一一些些有有意意义义一一些些"
+        assert (
+            last_line_without_drop
+            == "微微软软 培培训训课课程程：： 名名模模意意义义一一些些有有意意义义一一些些"
+        )
         assert last_line_with_drop == "微软 培训课程： 名模意义一些有意义一些"
 
     def test_extract_words(self):
@@ -46,7 +49,10 @@ class Test(unittest.TestCase):
         assert round(last_words_without_drop["top"], 3) in (top_windows, top_linux)
         assert round(last_words_without_drop["bottom"], 3) == bottom
         assert last_words_without_drop["upright"] == 1
-        assert last_words_without_drop["text"] == "名名模模意意义义一一些些有有意意义义一一些些"
+        assert (
+            last_words_without_drop["text"]
+            == "名名模模意意义义一一些些有有意意义义一一些些"
+        )
 
         assert round(last_words_with_drop["x0"], 3) == x0
         assert round(last_words_with_drop["x1"], 3) == x1_with_drop
@@ -60,7 +66,10 @@ class Test(unittest.TestCase):
         last_line_without_drop = page.extract_text().split("\n")[-1]
         last_line_with_drop = page.dedupe_chars().extract_text().split("\n")[-1]
 
-        assert last_line_without_drop == "微微软软 培培训训课课程程：： 名名模模意意义义一一些些有有意意义义一一些些"
+        assert (
+            last_line_without_drop
+            == "微微软软 培培训训课课程程：： 名名模模意意义义一一些些有有意意义义一一些些"
+        )
         assert last_line_with_drop == "微软 培训课程： 名模意义一些有意义一些"
 
     def test_extract_text2(self):
@@ -72,3 +81,60 @@ class Test(unittest.TestCase):
             page.dedupe_chars().extract_text(y_tolerance=6).splitlines()[4]
             == "UE 8. Circulation - Métabolismes"
         )
+
+    def test_extra_attrs(self):
+        path = os.path.join(HERE, "pdfs/issue-1114-dedupe-chars.pdf")
+        pdf = pdfplumber.open(path)
+        page = pdf.pages[0]
+
+        def dup_chars(s: str) -> str:
+            return "".join((char if char == " " else char + char) for char in s)
+
+        ground_truth = (
+            ("Simple", False, False),
+            ("Duplicated", True, True),
+            ("Font", "fontname", True),
+            ("Size", "size", True),
+            ("Italic", "fontname", True),
+            ("Weight", "fontname", True),
+            ("Horizontal shift", False, "HHoorrizizoonntatal ls shhifitft"),
+            ("Vertical shift", False, True),
+        )
+        gt = []
+        for text, should_dedup, dup_text in ground_truth:
+            if isinstance(dup_text, bool):
+                if dup_text:
+                    dup_text = dup_chars(text)
+                else:
+                    dup_text = text
+            gt.append((text, should_dedup, dup_text))
+
+        keys_list = ["no_dedupe", (), ("size",), ("fontname",), ("size", "fontname")]
+        for keys in keys_list:
+            if keys != "no_dedupe":
+                filtered_page = page.dedupe_chars(tolerance=2, extra_attrs=keys)
+            else:
+                filtered_page = page
+            for i, line in enumerate(
+                filtered_page.extract_text(y_tolerance=5).splitlines()
+            ):
+                text, should_dedup, dup_text = gt[i]
+                if keys == "no_dedupe":
+                    should_dedup = False
+                if isinstance(should_dedup, str):
+                    if should_dedup in keys:
+                        fail_msg = (
+                            f"{should_dedup} is not required to match "
+                            "so it should be duplicated"
+                        )
+                        assert line == dup_text, fail_msg
+                    else:
+                        fail_msg = (
+                            "Should not be duplicated "
+                            f"when requiring matching {should_dedup}"
+                        )
+                        assert line == text, fail_msg
+                elif should_dedup:
+                    assert line == text
+                else:
+                    assert line == dup_text

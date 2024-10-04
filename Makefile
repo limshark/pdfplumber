@@ -1,4 +1,4 @@
-.PHONY: venv tests check-black check-flake lint format examples
+.PHONY: venv tests check-black check-flake lint format examples build
 PYTHON := venv/bin/python
 PIP = venv/bin/pip
 

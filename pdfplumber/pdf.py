@@ -3,7 +3,7 @@ import logging
 import pathlib
 from io import BufferedReader, BytesIO
 from types import TracebackType
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
 
 from pdfminer.layout import LAParams
 from pdfminer.pdfdocument import PDFDocument
@@ -15,7 +15,8 @@ from pdfminer.psparser import PSException
 from ._typing import T_num, T_obj_list
 from .container import Container
 from .page import Page
-from .repair import _repair
+from .repair import T_repair_setting, _repair
+from .structure import PDFStructTree, StructTreeMissing
 from .utils import resolve_and_decode
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,7 @@ class PDF(Container):
         laparams: Optional[Dict[str, Any]] = None,
         password: Optional[str] = None,
         strict_metadata: bool = False,
+        unicode_norm: Optional[Literal["NFC", "NFKC", "NFD", "NFKD"]] = None,
     ):
         self.stream = stream
         self.stream_is_external = stream_is_external
@@ -40,6 +42,7 @@ class PDF(Container):
         self.pages_to_parse = pages
         self.laparams = None if laparams is None else LAParams(**laparams)
         self.password = password
+        self.unicode_norm = unicode_norm
 
         self.doc = PDFDocument(PDFParser(stream), password=password or "")
         self.rsrcmgr = PDFResourceManager()
@@ -69,14 +72,18 @@ class PDF(Container):
         laparams: Optional[Dict[str, Any]] = None,
         password: Optional[str] = None,
         strict_metadata: bool = False,
+        unicode_norm: Optional[Literal["NFC", "NFKC", "NFD", "NFKD"]] = None,
         repair: bool = False,
         gs_path: Optional[Union[str, pathlib.Path]] = None,
+        repair_setting: T_repair_setting = "default",
     ) -> "PDF":
 
         stream: Union[BufferedReader, BytesIO]
 
         if repair:
-            stream = _repair(path_or_fp, password=password, gs_path=gs_path)
+            stream = _repair(
+                path_or_fp, password=password, gs_path=gs_path, setting=repair_setting
+            )
             stream_is_external = False
             # Although the original file has a path,
             # the repaired version does not
@@ -98,6 +105,7 @@ class PDF(Container):
                 laparams=laparams,
                 password=password,
                 strict_metadata=strict_metadata,
+                unicode_norm=unicode_norm,
                 stream_is_external=stream_is_external,
             )
 
@@ -108,6 +116,10 @@ class PDF(Container):
 
     def close(self) -> None:
         self.flush_cache()
+
+        for page in self.pages:
+            page.close()
+
         if not self.stream_is_external:
             self.stream.close()
 
@@ -159,6 +171,14 @@ class PDF(Container):
     def hyperlinks(self) -> List[Dict[str, Any]]:
         gen = (p.hyperlinks for p in self.pages)
         return list(itertools.chain(*gen))
+
+    @property
+    def structure_tree(self) -> List[Dict[str, Any]]:
+        """Return the structure tree for the document."""
+        try:
+            return [elem.to_dict() for elem in PDFStructTree(self)]
+        except StructTreeMissing:
+            return []
 
     def to_dict(self, object_types: Optional[List[str]] = None) -> Dict[str, Any]:
         return {

@@ -73,6 +73,32 @@ class Test(unittest.TestCase):
             "",
         ]
 
+    def test_rows_and_columns(self):
+        path = os.path.join(HERE, "pdfs/issue-140-example.pdf")
+        with pdfplumber.open(path) as pdf:
+            page = pdf.pages[0]
+            table = page.find_table()
+            row = [page.crop(bbox).extract_text() for bbox in table.rows[0].cells]
+            assert row == [
+                "Line no",
+                "UPC code",
+                "Location",
+                "Item Description",
+                "Item Quantity",
+                "Bill Amount",
+                "Accrued Amount",
+                "Handling Rate",
+                "PO number",
+            ]
+            col = [page.crop(bbox).extract_text() for bbox in table.columns[1].cells]
+            assert col == [
+                "UPC code",
+                "0085648100305",
+                "0085648100380",
+                "0085648100303",
+                "0085648100300",
+            ]
+
     def test_explicit_desc_decimalization(self):
         """
         See issue #290

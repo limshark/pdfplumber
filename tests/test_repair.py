@@ -53,6 +53,18 @@ class Test(unittest.TestCase):
                 char = page.chars[0]
                 assert char["bottom"] < page.height
 
+    def test_repair_setting(self):
+        path = os.path.join(HERE, "pdfs/malformed-from-issue-932.pdf")
+        with tempfile.NamedTemporaryFile("wb") as out:
+            pdfplumber.repair(path, outfile=out.name)
+            size_default = os.stat(out.name).st_size
+
+        with tempfile.NamedTemporaryFile("wb") as out:
+            pdfplumber.repair(path, outfile=out.name, setting="prepress")
+            size_prepress = os.stat(out.name).st_size
+
+        assert size_default > size_prepress
+
     def test_repair_password(self):
         path = os.path.join(HERE, "pdfs/password-example.pdf")
         with pdfplumber.open(path, repair=True, password="test") as pdf:

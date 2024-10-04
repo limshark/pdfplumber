@@ -59,6 +59,42 @@ class Test(unittest.TestCase):
         with pdfplumber.open(path) as pdf:
             assert len(pdf.annots)
 
+    def test_annots_cropped(self):
+        pdf = self.pdf_2
+        page = pdf.pages[0]
+        assert len(page.annots) == 13
+        assert len(page.hyperlinks) == 1
+
+        cropped = page.crop(page.bbox)
+        assert len(cropped.annots) == 13
+        assert len(cropped.hyperlinks) == 1
+
+        h0_bbox = pdfplumber.utils.obj_to_bbox(page.hyperlinks[0])
+        cropped = page.crop(h0_bbox)
+        assert len(cropped.annots) == len(cropped.hyperlinks) == 1
+
+    def test_annots_rotated(self):
+        def get_annot(filename, n=0):
+            path = os.path.join(HERE, "pdfs", filename)
+            with pdfplumber.open(path) as pdf:
+                return pdf.pages[0].annots[n]
+
+        a = get_annot("annotations.pdf", 3)
+        b = get_annot("annotations-rotated-180.pdf", 3)
+        c = get_annot("annotations-rotated-90.pdf", 3)
+        d = get_annot("annotations-rotated-270.pdf", 3)
+
+        assert (
+            int(a["width"]) == int(b["width"]) == int(c["height"]) == int(d["height"])
+        )
+        assert (
+            int(a["height"]) == int(b["height"]) == int(c["width"]) == int(d["width"])
+        )
+        assert int(a["x0"]) == int(c["top"]) == int(d["y0"])
+        assert int(a["x1"]) == int(c["bottom"]) == int(d["y1"])
+        assert int(a["top"]) == int(b["y0"]) == int(d["x0"])
+        assert int(a["bottom"]) == int(b["y1"]) == int(d["x1"])
+
     def test_crop_and_filter(self):
         def test(obj):
             return obj["object_type"] == "char"
@@ -148,13 +184,26 @@ class Test(unittest.TestCase):
             assert rotated.pages[0].width == 612
             assert rotated.pages[0].height == 1008
 
-            assert rotated.pages[0].cropbox == self.pdf.pages[0].cropbox
+            assert rotated.pages[0].cropbox != self.pdf.pages[0].cropbox
             assert rotated.pages[0].bbox != self.pdf.pages[0].bbox
 
     def test_password(self):
         path = os.path.join(HERE, "pdfs/password-example.pdf")
         with pdfplumber.open(path, password="test") as pdf:
             assert len(pdf.chars) > 0
+
+    def test_unicode_normalization(self):
+        path = os.path.join(HERE, "pdfs/issue-905.pdf")
+
+        with pdfplumber.open(path) as pdf:
+            page = pdf.pages[0]
+            print(page.extract_text())
+            assert ord(page.chars[0]["text"]) == 894
+
+        with pdfplumber.open(path, unicode_norm="NFC") as pdf:
+            page = pdf.pages[0]
+            assert ord(page.chars[0]["text"]) == 59
+            assert page.extract_text() == ";;"
 
     def test_colors(self):
         rect = self.pdf.pages[0].rects[0]

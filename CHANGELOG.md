@@ -2,6 +2,87 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
+## [0.11.4] - 2024-08-18
+
+### Fixed
+
+- Fix one type hint so that it doesn't throw error on Python 3.8 (h/t @andrekeller). ([#1184](https://github.com/jsvine/pdfplumber/issues/1184))
+
+## [0.11.3] - 2024-08-07
+
+### Added
+
+- Add `Table.columns`, analogous to `Table.rows` (h/t @Pk13055). ([#1050](https://github.com/jsvine/pdfplumber/issues/1050) + [d39302f](https://github.com/jsvine/pdfplumber/commit/d39302f))
+- Add `Page.extract_words(return_chars=True)`, mirroring `Page.search(..., return_chars=True)`; if this argument is passed, each word dictionary will include an additional key-value pair: `"chars": [char_object, ...]` (h/t @cmdlineluser). ([#1173](https://github.com/jsvine/pdfplumber/issues/1173) + [1496cbd](https://github.com/jsvine/pdfplumber/commit/1496cbd))
+- Add `pdfplumber.open(unicode_norm="NFC"/"NFD"/"NFKC"/NFKD")`, where the values are the [four options for Unicode normalization](https://unicode.org/reports/tr15/#Normalization_Forms_Table) (h/t @petermr + @agusluques). ([#905](https://github.com/jsvine/pdfplumber/issues/905) + [03a477f](https://github.com/jsvine/pdfplumber/commit/03a477f))
+
+### Changed
+
+- Change default setting `pdfplumber.repair(...)` passes to Ghostscript's `-dPDFSETTINGS` parameter, from `prepress` to `default`, and make that setting modifiable via `.repair(setting=...)`, where the value is one of `"default"`, `"prepress"`, `"printer"`, or `"ebook"` (h/t @Laubeee). ([#874](https://github.com/jsvine/pdfplumber/issues/874) + [48cab3f](https://github.com/jsvine/pdfplumber/commit/48cab3f))
+
+### Fixed
+
+- Fix handling of object coordinates when `mediabox` does not begin at `(0,0)` (h/t @wodny). ([#1181](https://github.com/jsvine/pdfplumber/issues/1181) + [9025c3f](https://github.com/jsvine/pdfplumber/commit/9025c3f) + [046bd87](https://github.com/jsvine/pdfplumber/commit/046bd87))
+- Fix error on getting `.annots`/`.hyperlinks` from `CroppedPage` (due to missing `.rotation` and `.initial_doctop` attributes) (h/t @Safrone). ([#1171](https://github.com/jsvine/pdfplumber/issues/1171) + [e5737d2](https://github.com/jsvine/pdfplumber/commit/e5737d2))
+- Fix problem where `Page.crop(...)` was not cropping `.annots/.hyperlinks` (h/t @Safrone). ([#1171](https://github.com/jsvine/pdfplumber/issues/1171) + [22494e8](https://github.com/jsvine/pdfplumber/commit/22494e8))
+- Fix calculation of coordinates for `.annots` on `CroppedPage`s. ([0bbb340](https://github.com/jsvine/pdfplumber/commit/0bbb340) + [b16acc3](https://github.com/jsvine/pdfplumber/commit/b16acc3))
+- Dereference structure element attributes (h/t @dhdaines). ([#1169](https://github.com/jsvine/pdfplumber/pull/1169) + [3f16180](https://github.com/jsvine/pdfplumber/commit/3f16180))
+- Fix `Page.get_attr(...)` so that it fully resolves references before determining whether the attribute's value is `None` (h/t @zzhangyun + @mkl-public). ([#1176](https://github.com/jsvine/pdfplumber/issues/1176) + [c20cd3b](https://github.com/jsvine/pdfplumber/commit/c20cd3b))
+
+## [0.11.2] - 2024-07-06
+
+### Added
+
+- Add `extra_attrs` parameter to `.dedupe_chars(...)` to adjust the properties used when deduplicating (h/t @QuentinAndre11). ([#1114](https://github.com/jsvine/pdfplumber/issues/1114))
+
+### Development Changes
+
+- Remove testing for Python 3.8, add testing for Python 3.12. ([944eaed](https://github.com/jsvine/pdfplumber/commit/944eaed))
+- Upgrade `flake8`, `pytest`, and `pytest-cov` — and add `setuptools` and `py` as explicit dev requirements (for Python 3.12).
+
+## [0.11.1] - 2024-06-11
+
+### Fixed
+- Fix `.open(..., repair=True)` subprocess args (to avoid stderr being captured) ([70534a7](https://github.com/jsvine/pdfplumber/commit/70534a7))
+- Fix coordinates of annots on rotated pages ([aaa35c9](https://github.com/jsvine/pdfplumber/commit/aaa35c9))
+- Fix handling `PDFDocEncoding` failures in `decode_text(...)`([#1147](https://github.com/jsvine/pdfplumber/issues/1147) + [4daf0aa](https://github.com/jsvine/pdfplumber/commit/4daf0aa))
+- Add `.get_textmap.cache_clear()` to `page.close()` ([0a26f05](https://github.com/jsvine/pdfplumber/commit/0a26f05))
+
+## [0.11.0] - 2024-03-07
+
+### Added
+
+- Add `{line,char}_dir{,rotated,render}` params, to provide better support for non–top-to-bottom, left-to-right text (h/t @afriedman412). ([850fd45](https://github.com/jsvine/pdfplumber/commit/850fd45))
+- Add `curve["path"]` and `curve["dash"]`, thanks to `pdfminer.six` upgrade (see below). ([1820247](https://github.com/jsvine/pdfplumber/commit/1820247))
+
+### Changed
+- Upgrade `pdfminer.six` from `20221105` to `20231228`. ([cd2f768](https://github.com/jsvine/pdfplumber/commit/cd2f768))
+- Change value of in `word["direction"]` from `{1,-1}` to `{"ltr","rtl","ttb","btt"}`. ([850fd45](https://github.com/jsvine/pdfplumber/commit/850fd45))
+- Deprecate `vertical_ttb`, `horizontal_ltr` in favor of `char_dir` and `char_dir_rotated`.([850fd45](https://github.com/jsvine/pdfplumber/commit/850fd45))
+
+
+### Fixed
+- Fix layout-caching issue  caused by `0bfffc2`. ([#1097](https://github.com/jsvine/pdfplumber/pull/1097) + [efca277](https://github.com/jsvine/pdfplumber/commit/efca277))
+- Fix missing ParentTree edge-case. ([#1094](https://github.com/jsvine/pdfplumber/pull/1094)))
+
+## [0.10.4] - 2024-02-10
+
+### Added
+
+- Add `x_tolerance_ratio` parameter to `extract_text` and similar functions, to account for text size when spacing characters (instead of a fixed number of pixels) (h/t @afriedman412). ([#1041](https://github.com/jsvine/pdfplumber/pulls/1041))
+- Add support for PDF 1.3 logical structure via `Page.structure_tree` (h/t @dhdaines). ([#963](https://github.com/jsvine/pdfplumber/pulls/963))
+- Add "gswin64c" as another possible Ghostscript executable in `repair.py` (h/t @echedey-ls). ([#1032](https://github.com/jsvine/pdfplumber/issues/1030))
+- Re-add `Page.close()` method, have `PDF.close()` close all pages as well, and improve relevant documentation (h/t @luketudge). ([#1042](https://github.com/jsvine/pdfplumber/issues/1042))
+- Add `force_mediabox` parameter to `Page.to_image(...)`. ([#1054](https://github.com/jsvine/pdfplumber/issues/1054))
+
+### Fixed
+
+- Standardize handling of cropbox, fixing various issues with PageImage. ([#1054](https://github.com/jsvine/pdfplumber/issues/1054))
+- Fix `Page.get_textmap` caching to allow for `extra_attrs=[...]`, by preconverting list kwargs to tuples. ([#1030](https://github.com/jsvine/pdfplumber/issues/1030))
+- Explicitly close `pypdfium2.PdfDocument` in `get_page_image` (h/t @dhdaines). ([#1090](https://github.com/jsvine/pdfplumber/pull/1090))
+- In `PDFPageAggregatorWithMarkedContent.tag_cur_item`, check `self.cur_item._objs` length before trying to access `[-1]`. ([4f39d03](https://github.com/jsvine/pdfplumber/commit/4f39d03))
+
+
 ## [0.10.3] - 2023-10-26
 
 ### Added

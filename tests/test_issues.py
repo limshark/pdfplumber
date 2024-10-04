@@ -2,6 +2,11 @@
 import logging
 import os
 import re
+
+try:
+    import resource
+except ModuleNotFoundError:
+    resource = None
 import unittest
 
 import pdfplumber
@@ -275,3 +280,55 @@ class Test(unittest.TestCase):
             text = re.sub(r"\s+", " ", page.extract_text(use_text_flow=True))
             words = " ".join(w["text"] for w in page.extract_words(use_text_flow=True))
             assert text[0:100] == words[0:100]
+
+    def test_issue_1089(self):
+        """
+        Page.to_image() leaks file descriptors
+
+        This is because PyPdfium2 leaks file descriptors.  Explicitly
+        close the `PdfDocument` to prevent this.
+        """
+        # Skip test on platforms without getrlimit
+        if resource is None:
+            return
+        # Any PDF will do
+        path = os.path.join(HERE, "pdfs/test-punkt.pdf")
+        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        with pdfplumber.open(path) as pdf:
+            for idx in range(soft):
+                _ = pdf.pages[0].to_image()
+        # We're still alive
+        assert True
+
+    def test_issue_1147(self):
+        """
+        Edge-case for when decode_text is passed a string
+        that is out of bounds of PDFDocEncoding
+        """
+        path = os.path.join(HERE, "pdfs/issue-1147-example.pdf")
+        with pdfplumber.open(path) as pdf:
+            page = pdf.pages[0]
+            # Should not error:
+            assert page.extract_text()
+
+    def test_issue_1181(self):
+        """
+        Correctly re-calculate coordinates when MediaBox does not start at (0,0)
+        """
+        path = os.path.join(HERE, "pdfs/issue-1181.pdf")
+        with pdfplumber.open(path) as pdf:
+            p0, p1 = pdf.pages
+            assert p0.crop(p0.bbox).extract_table() == [
+                ["FooCol1", "FooCol2", "FooCol3"],
+                ["Foo4", "Foo5", "Foo6"],
+                ["Foo7", "Foo8", "Foo9"],
+                ["Foo10", "Foo11", "Foo12"],
+                ["", "", ""],
+            ]
+            assert p1.crop(p1.bbox).extract_table() == [
+                ["BarCol1", "BarCol2", "BarCol3"],
+                ["Bar4", "Bar5", "Bar6"],
+                ["Bar7", "Bar8", "Bar9"],
+                ["Bar10", "Bar11", "Bar12"],
+                ["", "", ""],
+            ]
